@@ -12,12 +12,17 @@ self.addEventListener('activate',event=>{
   const keys=await caches.keys();
   await Promise.all(keys.filter(k=>k.startsWith('ftg-pwa-')&&k!==CACHE&&k!==ART_CACHE).map(k=>caches.delete(k)));
   await self.clients.claim();
-  // Artwork is downloaded after shell installation so startup remains responsive.
+ })());
+});
+// Download art only after the app has started. Keep activation short.
+self.addEventListener('message',event=>{
+ if(event.data?.type!=='CACHE_ARTWORK')return;
+ event.waitUntil((async()=>{
   const cache=await caches.open(ART_CACHE);
   for(const name of GODS){
    const url=new URL('./assets/'+name+'.webp',self.registration.scope).href;
    if(await cache.match(url))continue;
-   try{const response=await fetch(url);if(response.ok)await cache.put(url,response)}catch(e){/* retry on a later visit */}
+   try{const response=await fetch(url);if(response.ok)await cache.put(url,response)}catch(e){/* retry next visit */}
   }
  })());
 });
