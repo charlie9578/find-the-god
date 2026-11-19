@@ -64,6 +64,27 @@ if(active){loadBoard(); selected=otherPlayers()[0]}
 function persistBoard(){if(active) putStore(boardKey(),JSON.stringify(board))}
 function persistScores(){if(active) saveScores(active.seed,active.roster,scores)}
 function img(g){return ART[g]}
+// Cache each round's card illustrations after the visible cards start loading.
+const warmedImages=new Set();
+let imageWarmTimer=null;
+function warmRoundImages(){
+ if(!active)return;
+ clearTimeout(imageWarmTimer);
+ const pending=inPlayGods().filter(g=>!warmedImages.has(g));
+ imageWarmTimer=setTimeout(()=>{
+  let i=0;
+  function next(){
+   if(i>=pending.length)return;
+   const god=pending[i++];
+   warmedImages.add(god);
+   const image=new Image();
+   image.onload=image.onerror=next;
+   image.src=img(god);
+   if(image.complete)next();
+  }
+  next();
+ },800);
+}
 function manualRuled(p,g){return (board.excluded[p]||[]).includes(g)}
 function autoReason(p,g){if(g===myGod()) return 'your own god'; if(board.confirmed[p]&&board.confirmed[p]!==g) return playerName(p)+' is confirmed as '+board.confirmed[p]; for(let i of otherPlayers()) if(i!==p&&board.confirmed[i]===g) return playerName(i)+' is confirmed as '+g; return ''}
 function cardStatus(p,g){if(board.confirmed[p]===g) return 'yes'; if(manualRuled(p,g)||autoReason(p,g)) return 'no'; return 'possible'}
@@ -128,8 +149,8 @@ function loadSharedSetup(config){
  setupDraft={seed:config.s,round:config.r,player:config.p[0]};
  page='setup'; selected=null; modal=null;
 }
-function shareSetup(){
- let config=currentSetupPayload(); if(!config) return;
+function shareSetup(config=currentSetupPayload()){
+ if(!config) return;
  let code=encodeSetupCode(config);
  let hosted=window.location.protocol==='https:'||window.location.protocol==='http:';
  let result;
@@ -140,6 +161,7 @@ function shareSetup(){
    navigator.clipboard.writeText(result).then(()=>toast(msg)).catch(()=>{prompt('Copy this '+(hosted?'game link':'setup code')+':',result)});
  } else prompt('Copy this '+(hosted?'game link':'setup code')+':',result);
 }
+function activeSetupPayload(){return {v:1,s:active.seed,r:active.round,g:active.godCount,p:active.roster,n:ALL_PLAYERS.map(p=>playerName(p))}}
 function importSetup(){
  let value=prompt('Paste a shared setup code or full setup link:','');
  if(value===null||!value.trim()) return;
@@ -154,7 +176,7 @@ function setupPage(){let s=setupDraft.seed, r=setupDraft.round, p=setupDraft.pla
 <section class="panel quiet"><div class="row space" style="margin-bottom:8px"><h2 class="panelTitle" style="margin:0">Scoreboard</h2><button class="btn low" data-act="reset-scores">Reset scores</button></div><div id="setupScores">${scoreRows(chosen(),liveScores)}</div><p class="helper">Scores are tracked per seed and player group.</p></section>
 <section class="panel quiet"><h2 class="panelTitle">Your player names</h2><p class="helper">Charlie, Mark, James, Pete, Robert, Sarah and Harry are preloaded. You can edit them below. Make the same changes on each phone.</p><details><summary>Edit the names</summary><div class="roster" style="margin-top:12px">${ALL_PLAYERS.map(i=>`<label class="nameRow"><span class="number">#${i}</span><input class="field" data-name="${i}" maxlength="26" value="${esc(playerName(i))}"></label>`).join('')}</div></details></section>
 <section class="panel quiet"><h2 class="panelTitle">How to play</h2><div id="setupRules">${rules()}</div><p class="helper">All questions, answers and accusations happen aloud. Your phone only deals your god and remembers your deductions.</p></section><div class="foot">Find the God · ${MAX_GOD_COUNT} gods available</div>`}
-function gameTop(){return `<div class="gameTop"><div class="toolbar"><div class="toolbarTitle"><div class="brand">FIND THE GOD</div><div class="minor">${esc(playerName(active.player))} · Round ${active.round}</div></div><button class="iconBtn" data-act="goto-setup" aria-label="Game settings">⚙</button></div><div class="gameMeta"><span class="pill">${confirmedCount()} / ${otherPlayers().length} confirmed</span><span class="pill">${active.godCount} cards</span><span class="pill">Deal code ${esc(dealCode(active.seed,active.round,active.roster,active.godCount))}</span></div></div>`}
+function gameTop(){return `<div class="gameTop"><div class="toolbar"><div class="toolbarTitle"><div class="brand">FIND THE GOD</div><div class="minor">${esc(playerName(active.player))} · Round ${active.round}</div></div><button class="iconBtn" data-act="share-active" aria-label="Share this game round" title="Share game">↗ Share</button><button class="iconBtn" data-act="goto-setup" aria-label="Game settings">⚙</button></div><div class="gameMeta"><span class="pill">${confirmedCount()} / ${otherPlayers().length} confirmed</span><span class="pill">${active.godCount} cards</span><span class="pill">Deal code ${esc(dealCode(active.seed,active.round,active.roster,active.godCount))}</span></div></div>`}
 function playerTile(p){
  let position=playerPosition(active.round,active.roster,p), wins=Number(scores[p]||0), own=p===active.player;
  let is=!own&&selected===p, conf=!own?board.confirmed[p]:null, left=!own?possibilities(p):0;
@@ -165,7 +187,7 @@ function playerTile(p){
  return `<button type="button" class="playerButton ${is?'active':''}" data-act="select-player" data-player="${p}" aria-pressed="${is}" aria-label="Turn ${position}, ${name}, ${wins} ${wins===1?'win':'wins'}, ${conf?'confirmed as '+conf:left+' possible gods'}">${inner}</button>`;
 }
 function godTile(p,g){let state=cardStatus(p,g), why=autoReason(p,g), manual=manualRuled(p,g); let stateNote=state==='yes'?'Confirmed':state==='no'?(why&&!manual?'Ruled out automatically':'Ruled out'):''; return `<div class="godCard ${state==='yes'?'isConfirmed':state==='no'?'isRuled':''}" data-tile="${g}">
- <div class="portraitWrap"><img src="${img(g)}" loading="lazy" alt="${g}, Egyptian deity" draggable="false">${state==='yes'?'<div class="portraitShade confirmed"><span class="bigMark">✓</span></div>':state==='no'?'<div class="portraitShade ruled"><span class="bigMark">✕</span></div>':''}${stateNote?`<div class="stateMini ${state==='yes'?'yes':'no'}">${state==='yes'?'CONFIRMED':why&&!manual?'AUTO RULED OUT':'RULED OUT'}</div>`:''}</div>
+ <div class="portraitWrap"><img src="${img(g)}" loading="${deductionGods().indexOf(g)<4?'eager':'lazy'}" ${deductionGods().indexOf(g)<4?'fetchpriority="high"':''} decoding="async" width="320" height="480" alt="${g}, Egyptian deity" draggable="false">${state==='yes'?'<div class="portraitShade confirmed"><span class="bigMark">✓</span></div>':state==='no'?'<div class="portraitShade ruled"><span class="bigMark">✕</span></div>':''}${stateNote?`<div class="stateMini ${state==='yes'?'yes':'no'}">${state==='yes'?'CONFIRMED':why&&!manual?'AUTO RULED OUT':'RULED OUT'}</div>`:''}</div>
  <div class="godCaption">${g}</div>
  <div class="cardActions"><button class="markBtn ${state==='yes'?'onYes':''}" data-act="tick" data-player="${p}" data-god="${g}" aria-pressed="${state==='yes'}" aria-label="${state==='yes'?'Undo confirmation':'Confirm'} ${esc(g)} for ${esc(playerName(p))}" title="Confirm / undo">✓</button>
  <button class="markBtn ${state==='no'?'onNo':''}" data-act="cross" data-player="${p}" data-god="${g}" aria-pressed="${state==='no'}" aria-label="${state==='no'?'Undo rule out':'Rule out'} ${esc(g)} for ${esc(playerName(p))}" title="Rule out / undo">✕</button>
@@ -173,7 +195,7 @@ function godTile(p,g){let state=cardStatus(p,g), why=autoReason(p,g), manual=man
 function gamePage(){if(!otherPlayers().includes(selected)) selected=otherPlayers()[0]; let p=selected; let number=possibilities(p); let gods=deductionGods(); return `${gameTop()}<section><h2 class="sectionTitle">Who is everyone?</h2><p class="sectionHelp">Turn numbers show play order · 🏆 shows round wins. Tap someone to see your deductions, or tap YOU to peek at your secret god.</p><div class="playerGrid">${turnOrder(active.round,active.roster).map(playerTile).join('')}</div></section>
 <section><div class="browseHeader"><div><h2 class="sectionTitle">${esc(playerName(p))}'s gods</h2><div class="hint">Tap ✓ confirm · ✕ rule out · ⌕ enlarge & flip</div></div><span class="pill">${board.confirmed[p]?'✓ Confirmed':number+' possible'}</span></div><div class="godGrid">${gods.map(g=>godTile(p,g)).join('')}</div><div class="legend"><span><b class="y">✓</b> Confirm</span><span><b class="n">✕</b> Rule out</span><span><b class="z">⌕</b> Enlarge</span></div><p class="helper">Your own god is hidden from these boards. Tap ✓ or ✕ again to undo; confirmed gods are ruled out for other players.</p></section>
 <div class="bottomPanel"><div class="row space"><div><div class="smallcaps">Your deductions</div><div style="margin-top:3px;font-size:19px;font-weight:800;color:#fce1a5">${confirmedCount()} of ${otherPlayers().length} confirmed</div></div><button class="btn alt" data-act="recap">My matches</button></div>${confirmedCount()===otherPlayers().length?'<div class="notice">🎉 All your gods are marked! Announce the full set aloud and have everyone confirm.</div>':''}<div class="divider"></div><div class="row" style="align-items:stretch;flex-wrap:wrap"><button class="btn low" style="flex:1" data-act="reset-notes">↺ Clear notes</button><button class="btn" style="flex:1" data-act="next-round">Next round →</button></div><p class="helper">When you start the next round, you can record the winner and update the scoreboard.</p></div>`}
-function draw(restoreScroll=true){let y=restoreScroll?window.scrollY:0; $('#app').innerHTML=`<main class="container">${page==='setup'?setupPage():gamePage()}</main>`; drawModal(); if(restoreScroll) window.scrollTo(0,y)}
+function draw(restoreScroll=true){let y=restoreScroll?window.scrollY:0; $('#app').innerHTML=`<main class="container">${page==='setup'?setupPage():gamePage()}</main>`; drawModal(); if(page==='game') warmRoundImages(); if(restoreScroll) window.scrollTo(0,y)}
 function backField(label,content,wide=false){
  const value=Array.isArray(content)?content.join(' · '):content;
  return `<div class="backField ${wide?'wide':''}"><b>${esc(label)}</b><span>${esc(value)}</span></div>`;
@@ -191,8 +213,9 @@ function drawModal(){let el=$('#popup'); if(!modal){el.innerHTML=''; document.bo
   body=`<div class="modalHead"><span class="title">${modal.own?'Your secret god':'Look closer: '+modal.god}</span><button class="iconBtn" data-act="close">✕ Close</button></div>${modal.own?'<p class="helper" style="margin:0 0 10px">Keep this card hidden from everyone else.</p>':''}${back?backContent(modal.god):`<img src="${img(modal.god)}" alt="Full-size ${modal.god} card"><div class="center" style="font-family:Georgia,serif;font-size:22px;color:var(--gold);margin-top:8px">${modal.god}</div>`}<div class="cardFlipBar"><button type="button" class="btn alt" data-act="flip-card" aria-label="${back?'Show illustration':'Show mythology facts'}">${back?'↶ Show front':'↷ Flip for facts'}</button></div>`;
  }
  if(modal.type==='recap') body=`<div class="modalHead"><span class="title">My matches</span><button class="iconBtn" data-act="close">✕ Close</button></div><p class="helper">Read these aloud when you think you have all the gods.</p>${otherPlayers().map(p=>`<div class="summaryRows"><span>${esc(playerName(p))}</span><strong>${esc(board.confirmed[p]||'Not confirmed')}</strong></div>`).join('')}<p class="helper">The other players confirm your answers aloud.</p>`;
+ if(modal.type==='winner') body=`<div class="modalHead"><span class="title">Who won round ${active.round}?</span><button class="iconBtn" data-act="close" aria-label="Cancel choosing a winner">✕ Close</button></div><p class="helper">Tap the winner to add one point and begin round ${active.round+1}.</p><div class="winnerGrid">${active.roster.map(p=>`<button type="button" class="winnerChoice" data-act="winner-choice" data-winner="${p}"><span class="winnerName">${esc(playerName(p))}</span><span class="winnerScore">🏆 ${Number(scores[p]||0)} wins</span></button>`).join('')}</div><button class="btn low full" style="margin-top:12px" data-act="winner-choice" data-winner="0">Skip winner · Next round →</button>`;
  if(modal.type==='scores') body=`<div class="modalHead"><span class="title">Scoreboard</span><button class="iconBtn" data-act="close">✕ Close</button></div>${scoreRows(active.roster,scores)}<p class="helper">Scores are tracked for this seed and player group.</p>`;
- el.innerHTML=`<div class="overlay" data-act="close-bg"><div role="dialog" aria-modal="true" aria-label="${modal.type==='card'?'God card':modal.type==='scores'?'Scoreboard':'My matches'}" class="modal">${body}</div></div>`; document.body.style.overflow='hidden';
+ el.innerHTML=`<div class="overlay" data-act="close-bg"><div role="dialog" aria-modal="true" aria-label="${modal.type==='card'?'God card':modal.type==='scores'?'Scoreboard':modal.type==='winner'?'Choose the winner':'My matches'}" class="modal">${body}</div></div>`; document.body.style.overflow='hidden';
 }
 function openCard(g,own=false){modal={type:'card',god:g,own,side:'front'}; drawModal()}
 function showSetupError(msg){let e=$('#setupError'); if(e){e.style.display='block'; e.textContent=msg}}
@@ -201,11 +224,11 @@ function updateSetupRoster(){let was=Number($('#player')?.value)||active?.player
 function startGame(seed,round,player,roster,godCount){active={seed:canonical(seed), round:Number(round), player:Number(player), roster:normalRoster(roster), godCount:Number(godCount)}; setupSelection=new Set(active.roster); setupGodCount=active.godCount;setupDraft={seed:active.seed,round:active.round,player:active.player}; scores=loadScores(active.seed,active.roster); putStore(ACTIVE_KEY,JSON.stringify(active)); loadBoard(); selected=otherPlayers()[0]; modal=null; page='game'; window.scrollTo(0,0); draw(false)}
 function toggleTick(p,g){if(g===myGod()){toast('That is your own god!'); return} if(board.confirmed[p]===g){delete board.confirmed[p]} else {for(let q of otherPlayers()) if(q!==p&&board.confirmed[q]===g) delete board.confirmed[q]; board.confirmed[p]=g; board.excluded[p]=(board.excluded[p]||[]).filter(x=>x!==g)} persistBoard(); draw()}
 function toggleCross(p,g){let auto=autoReason(p,g), list=board.excluded[p]||[]; if(board.confirmed[p]===g){delete board.confirmed[p]; board.excluded[p]=[...new Set([...list,g])]} else if(list.includes(g)){board.excluded[p]=list.filter(x=>x!==g)} else if(auto){toast('Already ruled out: '+auto); return} else {board.excluded[p]=[...list,g]} persistBoard(); draw()}
-function chooseWinner(){let opts=['No winner / skip'].concat(active.roster.map(p=>playerName(p))); let promptText='Who won round '+active.round+'?\n\n'+opts.map((name,i)=>i+': '+name).join('\n'); let res=prompt(promptText,'0'); if(res===null) return null; let idx=Number(res); if(!Number.isInteger(idx)||idx<0||idx>active.roster.length){alert('Please enter one of the numbers shown.'); return chooseWinner()} if(idx===0) return 0; return active.roster[idx-1]}
 function handleClick(e){let el=e.target.closest('[data-act]'); if(!el) return; let action=el.dataset.act; if(action==='close-bg'&&e.target!==el) return;
  if(action==='goto-setup'){setupDraft={seed:active?.seed||'',round:active?.round||1,player:active?.player||chosen()[0]};page='setup'; modal=null; window.scrollTo(0,0); draw(false); return}
  if(action==='random-seed'){let v=$('#seed'); if(v){v.value='NILE-'+Math.floor(Math.random()*9000+1000);setupDraft.seed=v.value} return}
  if(action==='share-setup'){shareSetup();return}
+ if(action==='share-active'){shareSetup(activeSetupPayload());return}
  if(action==='paste-setup'){importSetup();return}
  if(action==='copy-invite'){let seed=$('#seed')?.value?.trim()||'NILE42', round=$('#round')?.value||'1', r=chosen(), gc=selectedGodCount(); let txt=`Find the God — seed: ${canonical(seed)} | round: ${round} | cards: ${gc} | players: ${r.map(n=>playerName(n)+' (#'+n+')').join(', ')} | deal code: ${dealCode(seed,round,r,gc)}. Choose your own name.`; if(navigator.clipboard?.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Game details copied')).catch(()=>showSetupError(txt))} else showSetupError(txt); return}
  if(action==='reset-scores'){let seed=$('#seed')?.value?.trim()||active?.seed||'', roster=chosen(); if(confirm('Reset the scoreboard for this seed and group?')){resetScores(seed,roster); if(active&&canonical(seed)===active.seed&&JSON.stringify(normalRoster(roster))===JSON.stringify(active.roster)){scores=blankScores(active.roster); persistScores()} draw(false)} return}
@@ -219,7 +242,8 @@ function handleClick(e){let el=e.target.closest('[data-act]'); if(!el) return; l
  if(action==='cross'){toggleCross(Number(el.dataset.player),el.dataset.god); return}
  if(action==='recap'){modal={type:'recap'}; drawModal(); return}
  if(action==='reset-notes'){if(confirm('Clear all your deductions for this round?')){board={excluded:{},confirmed:{}}; persistBoard(); draw()} return}
- if(action==='next-round'){if(active.round>=9999){alert('Round limit reached. Change the seed in Setup.'); return} let winner=chooseWinner(); if(winner===null) return; if(winner){scores[winner]=(scores[winner]||0)+1; persistScores(); toast(playerName(winner)+' scores a point');} startGame(active.seed,active.round+1,active.player,active.roster,active.godCount); return}
+ if(action==='next-round'){if(active.round>=9999){alert('Round limit reached. Change the seed in Setup.'); return} modal={type:'winner'};drawModal();return}
+ if(action==='winner-choice'&&modal?.type==='winner'){let winner=Number(el.dataset.winner);if(winner!==0&&!active.roster.includes(winner))return; if(winner){scores[winner]=(scores[winner]||0)+1;persistScores();}const name=winner?playerName(winner):null;startGame(active.seed,active.round+1,active.player,active.roster,active.godCount);if(name)toast(name+' wins the round!');return}
 }
 document.addEventListener('click',handleClick);
 document.addEventListener('submit',e=>{if(e.target.id!=='setupForm') return; e.preventDefault(); let seed=$('#seed').value.trim(), round=Number($('#round').value), player=Number($('#player').value), roster=chosen(), godCount=Number($('#godCount').value); if(!seed){showSetupError('Enter a shared game seed.'); return} if(!validRound(round)){showSetupError('Round must be between 1 and 9999.'); return} if(!validGodCount(godCount)){showSetupError('Choose between 7 and 25 god cards.'); return} if(roster.length<2){showSetupError('Choose at least two players.'); return} if(!roster.includes(player)){showSetupError('Choose your own name from the active players.'); return} startGame(seed,round,player,roster,godCount)});
