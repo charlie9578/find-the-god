@@ -41,3 +41,11 @@ The repository uses relative paths, so the game works under the project site's `
 ## License
 
 No license has been specified for the source code or card illustrations.
+
+## Sharing and next rounds
+
+From setup, choose **Share setup** to copy a URL containing the seed, round, selected players, card count and player names. During a game, use **↗ Share** in the top bar to copy a link to the current round. Everyone opens the link and chooses their own player name. The URL never includes private deductions or secret identities; scores remain local to each browser.
+
+At the end of a round, tap **Next round** and then tap the winner's name to award a point and advance. Choose **Skip winner** to advance without awarding a point.
+
+Card images are WebP; immediately visible cards load eagerly while remaining round images are warmed into the browser cache after the initial render.
