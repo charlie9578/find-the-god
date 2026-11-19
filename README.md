@@ -49,3 +49,14 @@ From setup, choose **Share setup** to copy a URL containing the seed, round, sel
 At the end of a round, tap **Next round** and then tap the winner's name to award a point and advance. Choose **Skip winner** to advance without awarding a point.
 
 Card images are WebP; immediately visible cards load eagerly while remaining round images are warmed into the browser cache after the initial render.
+
+## Install as a mobile app (PWA)
+
+Open [Find the God](https://charlie9578.github.io/find-the-god/) in a mobile browser over HTTPS:
+
+- **Android (Chrome):** use the browser menu → **Install app** or **Add to Home screen**.
+- **iPhone (Safari):** tap Share → **Add to Home Screen** → Add.
+
+Open it from the home screen for a standalone full-screen-like app experience. No app-store account or separate download is necessary. Game state and scores stay on the device; shared game links still work.
+
+A service worker caches the game shell on first load and caches the illustrations for offline use. For the most reliable offline play, open the game while connected and allow the artwork to finish downloading before disconnecting. New code is fetched on subsequent online visits; the app needs an online visit to update.
