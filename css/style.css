@@ -50,3 +50,10 @@ button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,inpu
 .winnerChoice{min-width:0;min-height:70px;padding:12px;text-align:left;background:linear-gradient(#294866,#162c49);border:1px solid #7c96b0;border-radius:12px;color:var(--cream);display:flex;flex-direction:column;justify-content:center;gap:6px}
 .winnerChoice:hover,.winnerChoice:focus-visible{border-color:var(--gold);background:#365477}
 .winnerName{font-weight:800;overflow-wrap:anywhere}.winnerScore{font-size:12px;color:#e7d2a7}
+
+/* Shared gold-and-navy Eye of Ra magnifier logo. */
+.brandIcon{display:block;flex:0 0 auto;width:46px;height:46px;border-radius:12px;object-fit:contain}
+.gameBrand{display:flex;align-items:center;gap:9px;min-width:0}
+.gameBrand .brand{min-width:0;line-height:1.08}
+.gameBrand .brandIcon{width:40px;height:40px;border-radius:10px}
+@media(max-width:380px){.gameBrand{gap:6px}.gameBrand .brand{font-size:18px}.gameBrand .brandIcon{width:34px;height:34px}}

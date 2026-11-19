@@ -1,8 +1,8 @@
 /* Find the God offline shell and artwork cache. All paths are scope-relative. */
-const VERSION='ftg-pwa-v1';
+const VERSION='ftg-pwa-v2';
 const CACHE=VERSION+'-core';
-const ART_CACHE=VERSION+'-images';
-const CORE=['./','./index.html','./css/style.css','./js/art.js','./js/game.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
+const ART_CACHE='ftg-pwa-v1-images'; // Keep already-downloaded cards across icon updates.
+const CORE=['./','./index.html','./css/style.css','./js/art.js','./js/game.js','./manifest.webmanifest','./icons/eye-32.png','./icons/eye-180.png','./icons/eye-192.png','./icons/eye-512.png'];
 const GODS=['anubis','horus','isis','osiris','sekhmet','sobek','thoth','hathor','ptah','bastet','set','nephthys','amun','khonsu','min','ra','maat','nut','geb','mut','nehebkau','khnum','neith','taweret','bes'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
