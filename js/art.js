@@ -1,0 +1,28 @@
+// Card illustrations extracted from the original standalone HTML.
+const ART = {
+  "ANUBIS": "./assets/anubis.webp",
+  "HORUS": "./assets/horus.webp",
+  "ISIS": "./assets/isis.webp",
+  "OSIRIS": "./assets/osiris.webp",
+  "SEKHMET": "./assets/sekhmet.webp",
+  "SOBEK": "./assets/sobek.webp",
+  "THOTH": "./assets/thoth.webp",
+  "HATHOR": "./assets/hathor.webp",
+  "PTAH": "./assets/ptah.webp",
+  "BASTET": "./assets/bastet.webp",
+  "SET": "./assets/set.webp",
+  "NEPHTHYS": "./assets/nephthys.webp",
+  "AMUN": "./assets/amun.webp",
+  "KHONSU": "./assets/khonsu.webp",
+  "MIN": "./assets/min.webp",
+  "RA": "./assets/ra.webp",
+  "MAAT": "./assets/maat.webp",
+  "NUT": "./assets/nut.webp",
+  "GEB": "./assets/geb.webp",
+  "MUT": "./assets/mut.webp",
+  "NEHEBKAU": "./assets/nehebkau.webp",
+  "KHNUM": "./assets/khnum.webp",
+  "NEITH": "./assets/neith.webp",
+  "TAWERET": "./assets/taweret.webp",
+  "BES": "./assets/bes.webp"
+};
